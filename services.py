@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .models import User
@@ -9,13 +10,11 @@ from .schemas import TodoCreate, TodoUpdate
 
 from .utils import hash_password
 
-from .exceptions import TodoNotFound, UserNotFound
+from .exceptions import TodoNotFound, EmailAlreadyRegistered, UserNotFound
 
 
-def get_user(db_session: Session, user_id: int) -> User | None:
-    stmt = select(User).where(User.id == user_id)
-    result = db_session.execute(stmt)
-    user = result.scalar_one_or_none()
+def get_user(db: Session, user_id: int) -> User:
+    user = db.get(User, user_id)
 
     if not user:
         raise UserNotFound(user_id=user_id)
@@ -23,40 +22,43 @@ def get_user(db_session: Session, user_id: int) -> User | None:
     return user
 
 
-def create_user(db_session: Session, data: UserCreate) -> User:
+def create_user(db: Session, data: UserCreate) -> User:
     password = hash_password(data.password)
 
-    user = User(**data.model_dump(exclude={"password"}), password=password)
-    db_session.add(user)
+    user = User(**data.model_dump(exclude={"password"}), hashed_password=password)
+    db.add(user)
 
-    db_session.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise EmailAlreadyRegistered(data.email)
 
+    db.refresh(user)
     return user
 
 
-def get_todo(db_session: Session, todo_id: int) -> Todo | None:
-    stmt = select(Todo).where(Todo.id == todo_id)
-    result = db_session.execute(stmt)
-    todo = result.scalar_one_or_none()
+def get_todo(db: Session, todo_id: int) -> Todo:
+    todo = db.get(Todo, todo_id)
 
-    if not Todo:
+    if not todo:
         raise TodoNotFound(todo_id=todo_id)
 
     return todo
 
 
-def create_todo(db_session: Session, data: TodoCreate, user_id: int) -> Todo:
+def create_todo(db: Session, data: TodoCreate, user_id: int) -> Todo:
     todo = Todo(**data.model_dump(), user_id=user_id)
-    db_session.add(todo)
+    db.add(todo)
 
-    db_session.commit()
+    db.commit()
 
+    db.refresh(todo)
     return todo
 
 
-def update_todo(db_session: Session, data: TodoUpdate, todo_id: int) -> Todo:
-    stmt = select(Todo).where(Todo.id == todo_id)
-    todo = db_session.execute(stmt).scalar_one_or_none()
+def update_todo(db: Session, data: TodoUpdate, todo_id: int) -> Todo:
+    todo = db.get(Todo, todo_id)
 
     if not todo:
         raise TodoNotFound(todo_id=todo_id)
@@ -66,15 +68,15 @@ def update_todo(db_session: Session, data: TodoUpdate, todo_id: int) -> Todo:
     for field, value in updates.items():
         setattr(todo, field, value)
 
-    db_session.commit()
-    db_session.refresh(todo)
+    db.commit()
 
+    db.refresh(todo)
     return todo
 
 
-def get_user_by_email(db_session: Session, email: str) -> User | None:
+def get_user_by_email(db: Session, email: str) -> User:
     stmt = select(User).where(User.email == email)
-    result = db_session.execute(stmt)
+    result = db.execute(stmt)
     user = result.scalar_one_or_none()
 
     if not user:
