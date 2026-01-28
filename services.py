@@ -4,6 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from typing import Sequence
+
 from .models import User
 from .models import Todo
 
@@ -54,6 +56,25 @@ def get_todo(db: Session, todo_id: int) -> Todo:
         raise TodoNotFound(todo_id=todo_id)
 
     return todo
+
+
+def get_todos(
+    db: Session, user: User, page: int, limit: int
+) -> tuple[Sequence[Todo], int]:
+    offset = (page - 1) * limit
+
+    stmt = (
+        select(Todo)
+        .where(Todo.user_id == user.id)
+        .order_by(Todo.id.asc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    todos = db.execute(stmt).scalars().all()
+    total = db.query(Todo).filter(Todo.user_id == user.id).count()
+
+    return todos, total
 
 
 def create_todo(db: Session, data: TodoCreate, user: User) -> Todo:

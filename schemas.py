@@ -37,3 +37,10 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     token: str
+
+
+class PaginatedTodoResponse(BaseModel):
+    data: list[TodoOut]
+    page: int
+    limit: int
+    total: int
