@@ -1,12 +1,9 @@
 from sqlalchemy import String, ForeignKey
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
-
-class Base(DeclarativeBase):
-    pass
+from .database import Base
 
 
 class User(Base):
@@ -15,7 +12,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     email: Mapped[str] = mapped_column(unique=True)
-    hashed_password: Mapped[str] = mapped_column(String(60))
+    hashed_password: Mapped[str] = mapped_column(String(255))
 
     todos: Mapped[list["Todo"]] = relationship(back_populates="user")
 

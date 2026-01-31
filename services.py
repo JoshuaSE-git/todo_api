@@ -46,7 +46,9 @@ def create_user(db: Session, data: UserCreate) -> str:
 
     db.refresh(user)
 
-    return jwt.encode({"sub": user.id, "type": "access"}, "secret", algorithm="HS256")
+    return jwt.encode(
+        {"sub": str(user.id), "type": "access"}, "secret", algorithm="HS256"
+    )
 
 
 def get_todo(db: Session, todo_id: int) -> Todo:
@@ -126,7 +128,9 @@ def login(db: Session, login_request: LoginRequest) -> str:
 
     db.refresh(user)
 
-    return jwt.encode({"sub": user.id, "type": "access"}, "secret", algorithm="HS256")
+    return jwt.encode(
+        {"sub": str(user.id), "type": "access"}, "secret", algorithm="HS256"
+    )
 
 
 def assert_todo_access(user: User, todo: Todo):

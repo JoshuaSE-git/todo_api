@@ -1,10 +1,8 @@
-import services
-
 from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from database import get_db
+from .database import get_db
 
 from sqlalchemy.orm import Session
 
@@ -16,17 +14,19 @@ from .schemas import LoginRequest, TokenResponse
 
 from .models import User
 
+from . import services
+
 router = APIRouter()
 
 
 @router.post("/register", response_model=TokenResponse)
 async def register(data: UserCreate, db: Annotated[Session, Depends(get_db)]) -> Any:
-    return services.create_user(db, data)
+    return {"token": services.create_user(db, data)}
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> Any:
-    return services.login(db, data)
+    return {"token": services.login(db, data)}
 
 
 @router.post("/todos", response_model=TodoOut)
@@ -41,11 +41,11 @@ async def create_todo(
 @router.put("/todos/{id}", response_model=TodoOut)
 async def update_todo(
     data: TodoUpdate,
-    todo_id: int,
+    id: int,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> Any:
-    todo = services.get_todo(db, todo_id)
+    todo = services.get_todo(db, id)
     services.assert_todo_access(user, todo)
 
     return services.update_todo(db, data, todo)
@@ -53,21 +53,21 @@ async def update_todo(
 
 @router.delete("/todos/{id}", status_code=204)
 async def delete_todo(
-    todo_id: int,
+    id: int,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
-) -> Any:
-    todo = services.get_todo(db, todo_id)
+):
+    todo = services.get_todo(db, id)
     services.assert_todo_access(user, todo)
     services.delete_todo(db, todo)
 
 
 @router.get("/todos", response_model=PaginatedTodoResponse)
 async def get_todos(
-    page: Annotated[int, Query(ge=1, default=1)],
-    limit: Annotated[int, Query(ge=1, le=100, default=10)],
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
 ) -> Any:
     todos, total = services.get_todos(db, user, page, limit)
 

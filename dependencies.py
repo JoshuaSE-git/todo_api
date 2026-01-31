@@ -4,8 +4,8 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import User
+from .database import get_db
+from .models import User
 
 
 def get_current_user(
@@ -14,9 +14,10 @@ def get_current_user(
     if authorization is None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    decoded_jwt = jwt.decode(authorization, "secret", algorithms="HS256")
+    token = authorization.partition(" ")[2]
+    decoded_jwt = jwt.decode(token, "secret", algorithms="HS256")
 
-    user_id = decoded_jwt["sub"]
+    user_id = int(decoded_jwt["sub"])
 
     user = db.get(User, user_id)
 
